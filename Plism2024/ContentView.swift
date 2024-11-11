@@ -116,15 +116,15 @@ struct ContentView: View {
                             popUpShow.toggle()
                         }) {
                             VStack{
-                                Image(systemName: "icloud.and.arrow.up").foregroundColor(.gray)
-                                Text("検索").font(.footnote).foregroundColor(.gray)
+                                Image(systemName: "brain"/*"icloud.and.arrow.up"*/).foregroundColor(.gray)
+                                Text("顔検索").font(.footnote).foregroundColor(.gray)
                             }
                         }
                         Spacer()
                     }
                 }
             }
-            .navigationTitle("Plisn2024")
+            .navigationTitle("Plism2024")
             .navigationBarTitleDisplayMode(.inline)
         }
     }
