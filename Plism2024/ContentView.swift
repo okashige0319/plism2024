@@ -1,5 +1,6 @@
 import SwiftUI
 import PhotosUI
+import Photos
 
 struct ImagePickerView: UIViewControllerRepresentable {
 
@@ -44,9 +45,12 @@ struct ImagePickerView: UIViewControllerRepresentable {
 }
 
 struct ContentView: View {
+    
     @State private var selectedImages: [UIImage] = []
     @State private var showingImagePicker = false
     @State private var popUpShow = false
+    @State private var popUpShow2 = false
+    @State private var popUpShow3 = false
     
     init() {
         // Customize the navigation bar appearance
@@ -83,6 +87,20 @@ struct ContentView: View {
                     Button("キャンセル", role: .cancel){}
                 }message:{
                     Text("検索に行きますがいいですか？")
+                }
+                .alert("確認画面",isPresented: $popUpShow2){
+                    Button("OK"){
+                        createAlbumAndAddPhotos()
+                        popUpShow3.toggle()
+                    }
+                    Button("キャンセル", role: .cancel){}
+                }message:{
+                    Text("アルバムを作成します。いいですか？")
+                }
+                .alert("確認画面",isPresented: $popUpShow3){
+                    Button("OK"){}
+                }message:{
+                    Text("アルバムが作成されました!")
                 }
                 // ツールバー
                 .toolbar {
@@ -121,6 +139,19 @@ struct ContentView: View {
                             }
                         }
                         Spacer()
+                        
+                        // アルバム作成
+                        Button(action: {
+                            popUpShow2.toggle()
+                        }) {
+                            VStack{
+                                Image(systemName: "photo.badge.plus").foregroundColor(.gray)
+                                Text("仲間アルバム作成").font(.footnote).foregroundColor(.gray)
+                            }
+                        }
+                        .disabled(selectedImages.isEmpty) // 選択されている写真がないときはDisable
+                        
+                        Spacer()
                     }
                 }
             }
@@ -128,7 +159,69 @@ struct ContentView: View {
             .navigationBarTitleDisplayMode(.inline)
         }
     }
+
+    func createAlbumAndAddPhotos(){
+        let currentTime = Date()
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyyMMdd_HHmmss"
+        let albumTitle = formatter.string(from: currentTime)
+
+        // 日付でアルバム作って
+        createAlbumOnly(albumTitle: albumTitle)
+        
+        // 写真を追加する
+        for image in selectedImages{
+            addPhotoToAlbum(photo: image, albumName: albumTitle)
+        }
+    }
     
+    // Info.plist
+    // <key>NSPhotoLibraryUsageDescription</key>
+    // <string>We need access to your photo library to save and view photos within the app.</string>
+    // 追加が必要!!
+    func createAlbumOnly(albumTitle: String) {
+        
+        PHPhotoLibrary.shared().performChanges({
+            PHAssetCollectionChangeRequest.creationRequestForAssetCollection(withTitle: albumTitle)
+        }) { success, error in
+            if success {
+                print("Album created successfully")
+            } else {
+                print("Error creating album: \(error?.localizedDescription ?? "Unknown error")")
+            }
+        }
+    }
+
+    func addPhotoToAlbum(photo: UIImage, albumName: String) {
+        PHPhotoLibrary.shared().performChanges({
+            // アルバムをフェッチ
+            let albums = PHAssetCollection.fetchAssetCollections(with: .album, subtype: .any, options: nil)
+            var targetAlbum: PHAssetCollection?
+            albums.enumerateObjects { (collection, _, _) in
+                if collection.localizedTitle == albumName {
+                    targetAlbum = collection
+                }
+            }
+            
+            if let album = targetAlbum {
+                // 写真を作成
+                let assetRequest = PHAssetChangeRequest.creationRequestForAsset(from: photo)
+                // アルバムに写真を追加
+                if let placeholder = assetRequest.placeholderForCreatedAsset {
+                    let albumChangeRequest = PHAssetCollectionChangeRequest(for: album)
+                    let enumeration: NSArray = [placeholder]
+                    albumChangeRequest?.addAssets(enumeration)
+                }
+            }
+        }) { success, error in
+            if success {
+                print("Photo added to album successfully")
+            } else {
+                print("Error adding photo to album: \(error?.localizedDescription ?? "Unknown error")")
+            }
+        }
+    }
+
     func uploadImages() {
         guard !selectedImages.isEmpty else { return }
         for (index, image) in selectedImages.enumerated() {
